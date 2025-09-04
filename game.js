@@ -153,9 +153,16 @@ class MainScene extends Phaser.Scene {
     this.load.image('box','box.png');
     this.load.audio('jump','sounds/jump.ogg');
     this.load.audio('land','sounds/land.ogg');
+    this.load.audio('bgmusic', 'sounds/song.wav');
+    this.load.audio("lose", "sounds/losetrumpet.ogg")
   }
 
-  create() {
+  create() {if (this.music) {
+  this.music.stop(); // stop previous music if scene restarts
+}
+this.music = this.sound.add('bgmusic', { loop: true, volume: 0.5 });
+this.music.play();
+
     // Draw floor line behind everything
     this.floor = this.add.graphics();
     this.floor.lineStyle(4, 0x000000, 1);
@@ -173,27 +180,37 @@ class MainScene extends Phaser.Scene {
     this.scoreText = this.add.text(20, 20, 'Score: 0', { font: '20px Arial', fill: '#000' });
     this.highText = this.add.text(GAME_WIDTH - 20, 20, `High: ${this.highScore}`, { font: '20px Arial', fill: '#000' }).setOrigin(1,0);
 
-    this.sfx = { jump: this.sound.add('jump'), land: this.sound.add('land') };
+    this.sfx = { jump: this.sound.add('jump'), land: this.sound.add('land'), lose:this.sound.add("lose") };
 
     this.input.on('pointerdown', () => { if (!this.isGameOver) this.player.jump(); });
     this.input.keyboard.on('keydown', () => { if (!this.isGameOver) this.player.jump(); });
 
     this.spawnTimer = 0;
     this.isGameOver = false;
+    // Inside create():
+this.input.keyboard.on('keydown-ENTER', () => {
+  if (this.isGameOver) this.resetGame();
+});
+
+this.input.on('pointerdown', () => {
+  if (this.isGameOver) this.resetGame();
+});
+
 
     this.createGameOverUI();
   }
 
   createGameOverUI() {
     const overlay = this.add.container(0,0).setVisible(false).setDepth(100);
-    //const rect = this.add.rectangle(GAME_WIDTH/2, GAME_HEIGHT/2, 400, 200, 0x000000, 0.6);
+    const rect = this.add.rectangle(GAME_WIDTH/2, GAME_HEIGHT/2, 400, 200, 0x000000, 0.6);
     const title = this.add.text(GAME_WIDTH/2, GAME_HEIGHT/2 - 40, 'Game Over', { font: '36px Arial', fill: '#fff' }).setOrigin(0.5);
     const scoreLbl = this.add.text(GAME_WIDTH/2, GAME_HEIGHT/2, 'Score: 0', { font: '22px Arial', fill: '#fff' }).setOrigin(0.5);
     const retry = this.add.rectangle(GAME_WIDTH/2, GAME_HEIGHT/2+60, 140, 50, 0xffffff).setInteractive();
     const retryTxt = this.add.text(GAME_WIDTH/2, GAME_HEIGHT/2+60, 'Retry', { font: '20px Arial', fill: '#000' }).setOrigin(0.5);
 
+    this.overlay = overlay;
     retry.on('pointerdown', () => { overlay.setVisible(false); this.resetGame(); });
-    overlay.add([title,scoreLbl,retry,retryTxt]);
+    overlay.add([rect,title,scoreLbl,retry,retryTxt]);
     overlay.scoreLbl = scoreLbl;
     this.overlay = overlay;
   }
@@ -247,6 +264,7 @@ class MainScene extends Phaser.Scene {
 
   gameOver() {
     this.isGameOver=true;
+    this.soundPlay("lose");
     this.player.setDead();
     this.overlay.scoreLbl.setText(`Score: ${Math.floor(this.score)}`);
     this.overlay.setVisible(true);
@@ -255,6 +273,7 @@ class MainScene extends Phaser.Scene {
   }
 
   resetGame() {
+    if (this.overlay) this.overlay.setVisible(false);
     this.boxes.forEach(b=>b.destroy());
     this.boxes=[];
     const px = GAME_WIDTH*0.18, py=GROUND_LINE_Y-DISPLAY_SPRITE_SIZE/2;
